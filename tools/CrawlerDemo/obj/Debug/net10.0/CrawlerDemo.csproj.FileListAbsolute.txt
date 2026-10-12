@@ -12,3 +12,7 @@
 /Users/tylerwettach/Desktop/C#/seoSass/tools/CrawlerDemo/obj/Debug/net10.0/CrawlerDemo.pdb
 /Users/tylerwettach/Desktop/C#/seoSass/tools/CrawlerDemo/obj/Debug/net10.0/CrawlerDemo.genruntimeconfig.cache
 /Users/tylerwettach/Desktop/C#/seoSass/tools/CrawlerDemo/obj/Debug/net10.0/ref/CrawlerDemo.dll
+/Users/tylerwettach/Desktop/C#/seoSass/tools/CrawlerDemo/bin/Debug/net10.0/HtmlAgilityPack.dll
+/Users/tylerwettach/Desktop/C#/seoSass/tools/CrawlerDemo/obj/Debug/net10.0/CrawlerDemo.csproj.AssemblyReference.cache
+/Users/tylerwettach/Desktop/C#/seoSass/tools/CrawlerDemo/obj/Debug/net10.0/CrawlerDemo.sourcelink.json
+/Users/tylerwettach/Desktop/C#/seoSass/tools/CrawlerDemo/obj/Debug/net10.0/CrawlerD.3233A843.Up2Date
