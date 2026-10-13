@@ -4,49 +4,72 @@
 
 if (args.Length == 0)
 {
-    Console.WriteLine("Usage: CrawlerDemo <url>");
+    Console.WriteLine("Usage: CrawlerDemo <url> [maxPages]");
     return;
 }
 
-var url = args[0];
-var pageUri = new Uri(url);
+var startUri = new Uri(args[0]);
+var maxPages = args.Length > 1 && int.TryParse(args[1], out var mp) ? mp : 20;
 
 using var http = new HttpClient();
 
-Console.WriteLine($"Fetching {url}..");
+// Two data structures to drive the crawler
+var toVisit = new Queue<Uri>();
+var seen = new HashSet<string>();
 
-var response = await http.GetAsync(url);
-var html = await response.Content.ReadAsStringAsync();
-Console.WriteLine($"Status: {(int)response.StatusCode} Body: {html.Length} chars");
+// Prime the loop with the start URL
+toVisit.Enqueue(startUri);
+seen.Add(startUri.AbsoluteUri);
 
-// -- Parse the html into a queryable tree --
-var doc = new HtmlDocument();
-doc.LoadHtml(html);
 
-// Find every <a> element that has an href attribute.
-var anchors = doc.DocumentNode.SelectNodes("//a[@href]");
+var pagesCrawled = 0;
 
-if (anchors is null)
+while (toVisit.Count > 0 && pagesCrawled < maxPages)
 {
-    Console.WriteLine("No links found.");
-    return;
-}
+    var current = toVisit.Dequeue();
 
-Console.WriteLine($"\nFound {anchors.Count} <a href> tags. Resolving...\n");
+    string html;
+    try
+    {
+        var response = await http.GetAsync(current);
+        pagesCrawled++;
 
-foreach (var a in anchors)
-{
-    var href = a.GetAttributeValue("href", "");
+        Console.WriteLine($"[{pagesCrawled,3}] {(int)response.StatusCode} {current}");
 
-    // Turn whatever is in href into an absolute URL, relative to this page.
-    if (!Uri.TryCreate(pageUri, href, out var absolute))
+        if (!response.IsSuccessStatusCode) continue;
+
+        html = await response.Content.ReadAsStringAsync();
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"      FAILED  {current} -> {ex.Message}");
         continue;
 
-    // We only care about http/https links (skip mailto:, tel:, javascript:, #...)
-    if (absolute.Scheme != Uri.UriSchemeHttp && absolute.Scheme != Uri.UriSchemeHttps)
-        continue;
+    }
 
-    var sameSite = absolute.Host == pageUri.Host ? "internal" : "external";
-    Console.WriteLine($"[{sameSite}] {absolute}");
+    // Parse and discover internal links
+    var doc = new HtmlDocument();
+    doc.LoadHtml(html);
+
+    var anchors = doc.DocumentNode.SelectNodes("//a[@href]");
+    if (anchors is null) continue;
+
+    foreach (var a in anchors)
+    {
+        var href = a.GetAttributeValue("href", "");
+
+        if (!Uri.TryCreate(current, href, out var link))
+            continue;
+        if (link.Scheme != Uri.UriSchemeHttp && link.Scheme != Uri.UriSchemeHttps)
+            continue;
+        if (link.Host != startUri.Host)          // same-site only
+            continue;
+
+        // The dedup gate: HashSet.Add returns false if it was already there.
+        if (seen.Add(link.AbsoluteUri)) toVisit.Enqueue(link);
+    }
 }
+
+Console.WriteLine($"\nDone. Crawled {pagesCrawled} pages. Queue still had {toVisit.Count} waiting.");
+
 
