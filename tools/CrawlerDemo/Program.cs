@@ -12,6 +12,7 @@ var startUri = new Uri(args[0]);
 var maxPages = args.Length > 1 && int.TryParse(args[1], out var mp) ? mp : 20;
 
 using var http = new HttpClient();
+var safety = new UrlSafetyValidator(); // SSRF Saftey Validator
 
 // Two data structures to drive the crawler
 var toVisit = new Queue<Uri>();
@@ -19,8 +20,17 @@ var seen = new HashSet<string>();
 
 // Prime the loop with the start URL
 var start = UrlNormalizer.Normalize(startUri.AbsoluteUri) ?? startUri;
+
+var startCheck = await safety.ValidateAsync(start);
+if (!startCheck.IsAllowed)
+{
+    Console.WriteLine($"Refusing to crawl {start}: {startCheck.Reason}");
+    return;
+}
+
 toVisit.Enqueue(start);
 seen.Add(start.AbsoluteUri);
+
 
 
 var pagesCrawled = 0;
@@ -28,6 +38,14 @@ var pagesCrawled = 0;
 while (toVisit.Count > 0 && pagesCrawled < maxPages)
 {
     var current = toVisit.Dequeue();
+
+    //saftey check
+    var check = await safety.ValidateAsync(current);
+    if (!check.IsAllowed)
+    {
+        Console.WriteLine($"[SKIP] unsafe {current} -> {check.Reason}");
+        continue;
+    }
 
     string html;
     try
