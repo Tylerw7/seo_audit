@@ -1,5 +1,5 @@
 ﻿using HtmlAgilityPack;
-
+using CrawlerDemo;
 
 
 if (args.Length == 0)
@@ -18,8 +18,9 @@ var toVisit = new Queue<Uri>();
 var seen = new HashSet<string>();
 
 // Prime the loop with the start URL
-toVisit.Enqueue(startUri);
-seen.Add(startUri.AbsoluteUri);
+var start = UrlNormalizer.Normalize(startUri.AbsoluteUri) ?? startUri;
+toVisit.Enqueue(start);
+seen.Add(start.AbsoluteUri);
 
 
 var pagesCrawled = 0;
@@ -58,15 +59,16 @@ while (toVisit.Count > 0 && pagesCrawled < maxPages)
     {
         var href = a.GetAttributeValue("href", "");
 
-        if (!Uri.TryCreate(current, href, out var link))
+        // Normalize relative to the current page. Null = unusable link, skip it.
+        var link = UrlNormalizer.Normalize(href, current);
+        if (link is null)
             continue;
-        if (link.Scheme != Uri.UriSchemeHttp && link.Scheme != Uri.UriSchemeHttps)
-            continue;
+
         if (link.Host != startUri.Host)          // same-site only
             continue;
 
-        // The dedup gate: HashSet.Add returns false if it was already there.
-        if (seen.Add(link.AbsoluteUri)) toVisit.Enqueue(link);
+        if (seen.Add(link.AbsoluteUri))          // dedup now happens on the CANONICAL url
+            toVisit.Enqueue(link);
     }
 }
 
